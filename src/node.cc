@@ -379,6 +379,14 @@ static void ExecuteNativeJS(const char *filename, const char *data) {
   }
 }
 
+/**
+ * @brief 
+ * 1、在这里进行 node_obj 的创建：
+ *      1.1 包括设置一些属性对象，如 version、ARGV、ENV及 fs、tcp、udp 等模块；
+ *      1.2 也包括设置一些方法，如 dlopen、cwd 等；
+ * 2、把创建好的 node_obj 注入到 process（V8 提供的 Context ），以供 js 层面进行引用 node
+ * @return Local<Object> 
+ */
 static Local<Object> Load(int argc, char *argv[]) {
   HandleScope scope;
 
@@ -507,6 +515,13 @@ static void PrintHelp() {
 }
 
 // Parse node command line arguments.
+/**
+ * @brief 
+ * 解析通过 node 命令行启动的进程参数，并进行处理
+ * 如 --debug 就设置 use_debug_agent = true
+ * @param argc 
+ * @param argv 
+ */
 static void ParseArgs(int *argc, char **argv) {
   // TODO use parse opts
   for (int i = 1; i < *argc; i++) {
@@ -534,9 +549,16 @@ static void ParseArgs(int *argc, char **argv) {
   }
 }
 
-}  // namespace node
+}  
 
 
+/**
+ * @brief 
+ * 启动 node 进程的入口函数
+ * @param argc  参数的个数，第二个参数一般是 script 的路径
+ * @param argv  参数数组
+ * @return int 
+ */
 int main(int argc, char *argv[]) {
   // Parse a few arguments which are specific to Node.
   node::ParseArgs(&argc, argv);
@@ -544,7 +566,10 @@ int main(int argc, char *argv[]) {
   // in the command line))
   V8::SetFlagsFromCommandLine(&node::dash_dash_index, argv, false);
 
-  // Error out if we don't have a script argument.
+  /**
+   * @brief 
+   * 如果没有加 script 的路径，则抛出异常和提示
+   */
   if (argc < 2) {
     fprintf(stderr, "No script was specified.\n");
     node::PrintHelp();
@@ -554,7 +579,11 @@ int main(int argc, char *argv[]) {
   // Ignore the SIGPIPE
   evcom_ignore_sigpipe();
 
-  // Initialize the default ev loop.
+  
+  /**
+   * @brief 
+   * 初始化 libev 事件循环
+   */
   ev_default_loop(EVFLAG_AUTO);
 
   // Start the EIO thread pool:
@@ -570,6 +599,10 @@ int main(int argc, char *argv[]) {
   // of the ev_loop even though eio_watcher is active.
   ev_unref(EV_DEFAULT_UC);
 
+  /**
+   * 
+   * 启动 V8
+   */
   V8::Initialize();
   HandleScope handle_scope;
 
@@ -604,6 +637,11 @@ int main(int argc, char *argv[]) {
            "Use 'd8 --remote_debugger' to access it.\n");
   }
 
+  /**
+   * @brief 
+   * 接下来是 V8 Context 的初始化过程
+   * 主要是创建并注入 process 对象，process 对象其实就是 context->Global()
+   */
   // Create the global 'process' object's FunctionTemplate.
   Local<FunctionTemplate> process_template = FunctionTemplate::New();
 
@@ -621,10 +659,21 @@ int main(int argc, char *argv[]) {
   // Actually assign the global object to it's place as 'process'
   context->Global()->Set(String::NewSymbol("process"), context->Global());
 
+  /**
+   * @brief 
+   * 创建 node_obj，注入一些方法和属性对象
+   * 被注入到到 process 中，别名 node
+   * 可以查看 node::Load 方法的细节
+   */
   // Create all the objects, load modules, do everything.
   // so your next reading stop should be node::Load()!
   Local<Object> node_obj = node::Load(argc, argv);
 
+
+  /**
+   * @brief 开启事件循环
+   * 
+   */
   // All our arguments are loaded. We've evaluated all of the scripts. We
   // might even have created TCP servers. Now we enter the main event loop.
   // If there are no watchers on the loop (except for the ones that were
