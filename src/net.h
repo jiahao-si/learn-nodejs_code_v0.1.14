@@ -1,3 +1,8 @@
+/**
+ * 阅读头文件可以很清晰的看到某 namespace 下所提供的类，以及类所具有的public、protect 的接口等
+ * @copyright Copyright (c) 2022
+ * 
+ */
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
 #ifndef SRC_NET_H_
 #define SRC_NET_H_
@@ -39,11 +44,21 @@ class Connection : public EventEmitter {
     host_ = NULL;
     port_ = NULL;
 
+    /**
+     * @brief Construct a new Init object
+     * new node.tcp.Connection() 时会调用
+     * 里面会进行 evcom_stream_init
+     */
     Init();
   }
   virtual ~Connection();
 
   int Connect(struct sockaddr *address) {
+    /**
+     * evcom_stream_connect  提供的连接方法
+     * 
+     * @return return 
+     */
     return evcom_stream_connect(&stream_, address);
   }
 
@@ -145,10 +160,19 @@ class Server : public EventEmitter {
  protected:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
+  /**
+   * @brief 
+   * Listen 函数的声明，参数类型和返回类型，会返回一个 v8 的 Handle
+   * @param args 
+   * @return v8::Handle<v8::Value> 
+   */
   static v8::Handle<v8::Value> Listen(const v8::Arguments& args);
   static v8::Handle<v8::Value> Close(const v8::Arguments& args);
 
   Server() : EventEmitter() {
+    /**
+     * evcom 提供的创建 tcp server 的方法，里面会系统调用 listen
+     */
     evcom_server_init(&server_);
     server_.on_connection = Server::on_connection;
     server_.on_close = Server::on_close;
@@ -192,6 +216,10 @@ class Server : public EventEmitter {
     server->Detach();
   }
 
+  /**
+   * @brief 
+   * 这里是用到依赖的 server 事件库（evcom_server）
+   */
   evcom_server server_;
 };
 

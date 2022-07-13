@@ -1,3 +1,19 @@
+/**
+ * net.cc 这个文件主要与 tcp 相关，包括两个类 Server 和 Connection
+ * Server：
+ *    1、Listen
+ *    2、Close
+ *    3、...
+ * Connection：
+ *    1、Connect
+ *    2、Send
+ *    3、Close
+ *    4、...
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
+
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
 #include <net.h>
 
@@ -47,6 +63,11 @@ static const struct addrinfo client_tcp_hints =
 
 Persistent<FunctionTemplate> Connection::constructor_template;
 
+/**
+ * @brief 
+ * 在 node 进程启动的时候，会执行 Connection::Initialize 
+ * @param target 
+ */
 void Connection::Initialize(v8::Handle<v8::Object> target) {
   HandleScope scope;
 
@@ -57,6 +78,10 @@ void Connection::Initialize(v8::Handle<v8::Object> target) {
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   constructor_template->SetClassName(String::NewSymbol("Connection"));
 
+  /**
+   * @brief 
+   * 设置方法
+   */
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "connect", Connect);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "send", Send);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", Close);
@@ -103,6 +128,9 @@ Handle<Value> Connection::ReadyStateGetter(Local<String> property,
 
 void Connection::Init() {
   resolving_ = false;
+  /**
+   * Connection 的实现借助库（evcom） 的 evcom_stream_init
+   */
   evcom_stream_init(&stream_);
   stream_.on_connect = Connection::on_connect;
   stream_.on_read    = Connection::on_read;
@@ -125,7 +153,21 @@ Handle<Value> Connection::New(const Arguments& args) {
   return args.This();
 }
 
+/**
+ * @brief 
+ * 在作为 tcp client 的时候，调用 connection.connect(port, host);
+ * @param args 
+ * @return Handle<Value> 
+ */
 Handle<Value> Connection::Connect(const Arguments& args) {
+  /**
+   * @brief 
+   * 拿到 connection 实例
+   * （也就是在 js 中， var connection = new node.tcp.Connection();
+                    connection.connect(port, host); 
+        connect 的宿主对象 connection 
+      ）
+   */
   Connection *connection = ObjectWrap::Unwrap<Connection>(args.Holder());
 
   assert(connection);
@@ -152,10 +194,18 @@ Handle<Value> Connection::Connect(const Arguments& args) {
     return ThrowException(exception);
   }
 
+  /**
+   * @brief 
+   * 拿到 port_sv ： port string value
+   */
   String::AsciiValue port_sv(args[0]->ToString());
   assert(connection->port_ == NULL);
   connection->port_ = strdup(*port_sv);
 
+  /**
+   * @brief 
+   * 拿到 host_sv ： host string value
+   */
   assert(connection->host_ == NULL);
   if (args.Length() > 1 && args[1]->IsString()) {
     String::Utf8Value host_sv(args[1]->ToString());
@@ -166,6 +216,10 @@ Handle<Value> Connection::Connect(const Arguments& args) {
 
   ev_ref(EV_DEFAULT_UC);
 
+  /**
+   * @brief 
+   * 建立 client 的连接
+   */
   connection->Attach();
 
   /* For the moment I will do DNS lookups in the eio thread pool. This is
@@ -416,7 +470,20 @@ void Connection::OnEOF() {
 
 Persistent<FunctionTemplate> Server::constructor_template;
 
+/**
+ * @brief 
+ * 在 node 进程启动的时候，会执行 Server::Initialize 
+ * 主要是给 target（也就是传入的 tcp 对象）加入 Server 方法（Listen 和 Close）
+ * @param target 
+ */
 void Server::Initialize(Handle<Object> target) {
+  /**
+   * @brief 
+   * 新建一个栈对象 scope， 栈对象会在函数运行结束后，自动销毁（Local 关联的内存也会销毁）
+   * 定义Local对象的时候，会用到，这个比较隐晦了，V8的内部机制
+   * 如果你定义了一个handlescope，下面定义Local对象的时候，就会从handlescope对象里分配内存；
+   * 如果没定义，外层也会有一个；
+   */
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
@@ -428,6 +495,7 @@ void Server::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "listen", Listen);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", Close);
 
+  
   target->Set(String::NewSymbol("Server"), constructor_template->GetFunction());
 }
 
@@ -495,6 +563,13 @@ void Server::OnClose(int errorno) {
   Emit("close", 1, argv);
 }
 
+/**
+ * @brief 
+ * createServer 的依赖（var server = new node.tcp.Server();）
+ * 本质也是一个 EventEmitter
+ * @param args 
+ * @return Handle<Value> 
+ */
 Handle<Value> Server::New(const Arguments& args) {
   HandleScope scope;
 
@@ -504,7 +579,17 @@ Handle<Value> Server::New(const Arguments& args) {
   return args.This();
 }
 
+/**
+ * @brief 
+ * 经常用到的 listen 方法
+ * 
+ */
 Handle<Value> Server::Listen(const Arguments& args) {
+  /**
+   * @brief 
+   * 解析参数 args， 拿到 server 实例，最后会调用 server.listen
+   * 接着看Listen 被调用时的传参，也就是这个 server 实例是哪里生成的
+   */
   Server *server = ObjectWrap::Unwrap<Server>(args.Holder());
   assert(server);
 
