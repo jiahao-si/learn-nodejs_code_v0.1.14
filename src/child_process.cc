@@ -17,6 +17,11 @@ using namespace v8;
 
 Persistent<FunctionTemplate> ChildProcess::constructor_template;
 
+/**
+ * @brief node 进程启动时调用
+ * 
+ * @param target 
+ */
 void ChildProcess::Initialize(Handle<Object> target) {
   HandleScope scope;
 
@@ -31,10 +36,20 @@ void ChildProcess::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "close", ChildProcess::Close);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "kill", ChildProcess::Kill);
 
+  /**
+   * @brief 给 node_object 设置属性ChildProcess 和值 包含了spawn、write、close、kill几种方法的 object
+   * 
+   */
   target->Set(String::NewSymbol("ChildProcess"),
       constructor_template->GetFunction());
 }
 
+/**
+ * @brief 
+ * 得到一个 ChildProcess 的实例（V8 Handle）
+ * @param args 
+ * @return Handle<Value> 
+ */
 Handle<Value> ChildProcess::New(const Arguments& args) {
   HandleScope scope;
 
@@ -46,9 +61,16 @@ Handle<Value> ChildProcess::New(const Arguments& args) {
 
 // This is an internal function. The third argument should be an array
 // of key value pairs seperated with '='.
+/**
+ * @brief 
+ * 静态 static 方法（看头文件）（里面会调用同名实例方法）， 供 V8 调用
+ * @param args V8 传入的参数，是一个数组
+ * @return Handle<Value> 
+ */
 Handle<Value> ChildProcess::Spawn(const Arguments& args) {
   HandleScope scope;
 
+  // 参数校验
   if ( args.Length() != 3
     || !args[0]->IsString()
     || !args[1]->IsArray()
@@ -57,9 +79,14 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
   {
     return ThrowException(Exception::Error(String::New("Bad argument.")));
   }
-
+  
+  // 拿到实例
   ChildProcess *child = ObjectWrap::Unwrap<ChildProcess>(args.Holder());
 
+  /**
+   * @brief 
+   * 拿到文件路径参数
+   */
   String::Utf8Value file(args[0]->ToString());
 
   int i;
@@ -88,6 +115,11 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
     env[i] = strdup(*pair);
   }
 
+  /**
+   * @brief 
+   * 真正的调用
+   * 
+   */
   int r = child->Spawn(argv[0], argv, env);
 
   for (i = 0; i < argv_length; i++) free(argv[i]);
@@ -99,7 +131,10 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
   if (r != 0) {
     return ThrowException(Exception::Error(String::New("Error spawning")));
   }
-
+  /**
+   * @brief 设置 child process 的 pid
+   * 
+   */
   child->handle_->Set(PID_SYMBOL, Integer::New(child->pid_));
 
   return Undefined();
@@ -213,10 +248,30 @@ ChildProcess::ChildProcess() : EventEmitter() {
   pid_ = 0;
 }
 
+/**
+ * @brief Destroy the Child Process:: Child Process object
+ * 析构函数
+ *  function test {
+ *       A a;
+ *       // 函数执行完会调用析构函数
+ *   }
+ *
+ *   function test {
+ *       A* a = new A();
+ *       delete a;
+ *       // 删除对象时会调用析构函数
+ *   }
+ * 
+ * 有时候是自己显式 delete 这个对象，有时候会靠v8 gc的时候（把有可能关联此 C++ 对象的 js 对象删掉）
+ */
 ChildProcess::~ChildProcess() {
   Shutdown();
 }
 
+/**
+ * @brief 
+ * 销毁逻辑
+ */
 void ChildProcess::Shutdown() {
   if (stdin_fd_ >= 0) {
     evcom_writer_close(&stdin_writer_);
@@ -251,6 +306,14 @@ static inline int SetNonBlocking(int fd) {
 
 // Note that args[0] must be the same as the "file" param.  This is an
 // execvp() requirement.
+/**
+ * @brief 实例方法
+ * 
+ * @param file 
+ * @param args 
+ * @param env 
+ * @return int 
+ */
 int ChildProcess::Spawn(const char *file, char *const args[], char *const env[]) {
   assert(pid_ == 0);
   assert(stdout_fd_ == -1);
@@ -275,11 +338,20 @@ int ChildProcess::Spawn(const char *file, char *const args[], char *const env[])
     return -3;
   }
 
+  /**
+   * @brief Construct a new switch object
+   * 通过系统调用 vfork，创建子进程
+   * 
+   */
   switch (pid_ = vfork()) {
     case -1:  // Error.
       Shutdown();
       return -4;
 
+    /**
+     * @brief 子进程创建成功
+     * 
+     */
     case 0:  // Child.
       close(stdout_pipe[0]);  // close read end
       dup2(stdout_pipe[1], STDOUT_FILENO);
@@ -290,6 +362,10 @@ int ChildProcess::Spawn(const char *file, char *const args[], char *const env[])
       close(stdin_pipe[1]);  // close write end
       dup2(stdin_pipe[0],  STDIN_FILENO);
 
+      /**
+       * @brief Construct a new execvp object
+       * 执行文件
+       */
       execvp(file, args);
       perror("execvp()");
       _exit(127);

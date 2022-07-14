@@ -1,3 +1,8 @@
+/**
+ * @file child_process.h
+ * 子进程模块
+ * 
+ */
 // Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
 #ifndef SRC_CHILD_PROCESS_H_
 #define SRC_CHILD_PROCESS_H_
@@ -13,8 +18,17 @@ namespace node {
 
 class ChildProcess : EventEmitter {
  public:
+ /**
+  * @brief 
+  * 
+  * @param target （node_object）
+  */
   static void Initialize(v8::Handle<v8::Object> target);
 
+/**
+ * @brief 内部方法
+ * 
+ */
  protected:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
@@ -25,9 +39,25 @@ class ChildProcess : EventEmitter {
   static v8::Handle<v8::Value> PIDGetter(v8::Local<v8::String> _,
                                          const v8::AccessorInfo& info);
 
+  /**
+   * @brief Construct a new Child Process object
+   * 
+   */
   ChildProcess();
+  /**
+   * @brief Destroy the Child Process object
+   * 
+   */
   ~ChildProcess();
 
+  /**
+   * @brief 
+   * 提供的几种实例方法
+   * @param file 
+   * @param argv 
+   * @param env 
+   * @return int 
+   */
   int Spawn(const char *file, char *const argv[], char *const env[]);
   int Write(const char *str, size_t len);
   int Close(void);
@@ -42,12 +72,24 @@ class ChildProcess : EventEmitter {
   void MaybeShutdown(void);
   void Shutdown(void);
 
+  /**
+   * @brief 创建 evcom_reader、evcom_writer 的实例
+   * 
+   */
   evcom_reader stdout_reader_;
   evcom_reader stderr_reader_;
   evcom_writer stdin_writer_;
 
+  /**
+   * @brief 创建 ev_child 实例
+   * 
+   */
   ev_child child_watcher_;
 
+  /**
+   * @brief 
+   * 几种类变量
+   */
   int stdout_fd_;
   int stderr_fd_;
   int stdin_fd_;
