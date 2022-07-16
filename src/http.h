@@ -7,6 +7,10 @@
 
 namespace node {
 
+/**
+ * @brief 
+ * HTTPConnection 继承了 net 模块的 Connection
+ */
 class HTTPConnection : public Connection {
 public:
   static void Initialize (v8::Handle<v8::Object> target);
@@ -48,11 +52,19 @@ protected:
   static int on_body (http_parser *parser, const char *buf, size_t len);
   static int on_message_complete (http_parser *parser);
 
+  /**
+   * @brief 解析 http 用到了第三方库 http_parser
+   * 新建类的实例 parser_
+   */
   http_parser parser_;
 
   friend class HTTPServer;
 };
 
+/**
+ * @brief 继承了 net 模块的 Server
+ * 
+ */
 class HTTPServer : public Server {
 public:
   static void Initialize (v8::Handle<v8::Object> target);

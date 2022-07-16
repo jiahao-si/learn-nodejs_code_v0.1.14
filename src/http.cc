@@ -58,6 +58,13 @@ HTTPConnection::NewServer (const Arguments& args)
   return args.This();
 }
 
+/**
+ * @brief 
+ * 接下来就是各种 on 监听，使用 parser 进行编码后，数据被 connection 通过 emit 事件的方式发送到某队列 
+ * 这些函数都被覆给 parser_ 的同名回调函数（见 http.h 文件）
+ * @param buf 
+ * @param len 
+ */
 void
 HTTPConnection::OnReceive (const void *buf, size_t len)
 {
@@ -247,6 +254,11 @@ HTTPConnection::on_body (http_parser *parser, const char *buf, size_t len)
   return 0;
 }
 
+/**
+ * @brief 
+ * 前面是 http client 的，下面是 http server的
+ * 
+ */
 Persistent<FunctionTemplate> HTTPServer::constructor_template;
 
 void
